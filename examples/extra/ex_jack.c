@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
+#include <jack/jack.h>
 #include "soundpipe.h"
 
 #define NVOICES 5
@@ -47,10 +48,22 @@ void write_osc(sp_data *data, void *ud) {
 int main() {
     srand(time(NULL));
     udata ud;
+
+    jack_client_t *client = jack_client_open("tmp", JackNullOption, NULL);
+    if (client == 0) {
+        fprintf(stderr, "Unable to connect to JACK server\n");
+        exit(1);
+    }
+    jack_nframes_t sample_rate = jack_get_sample_rate(client);
+    jack_client_close(client);
+
     sp_data *sp;
     sp_create(&sp);
-    /* this is the samplerate I typically use for realtime */
-    sp->sr = 96000;
+    sp->sr = sample_rate;
+    /* length does not work in realtime */
+    sp->len = 0;
+    printf ("using sample rate %d\n", sp->sr);
+
     int notes[] = { 60, 67, 71, 74, 76 };
     int i;
 
@@ -71,8 +84,6 @@ int main() {
 
     sp_revsc_init(sp, ud.rev);
     sp_dcblock_init(sp, ud.dcblk);
-    /* length does not work in realtime */
-    sp->len = 0;
 
     sp_jack_process(sp, &ud, write_osc);
 
